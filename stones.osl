@@ -1,0 +1,55 @@
+shader stones(
+  point p = P,
+  vector Scale = 1,
+  float w = 0.02,
+  float s = 2,
+    
+  output float Fac = 0
+){
+  point Pos = p * Scale;
+  
+  float bot = floor(Pos[1]-1)+cellnoise(Pos[1]-1);
+  float lev = floor(Pos[1])+cellnoise(Pos[1]);
+  float top = floor(Pos[1]+1)+cellnoise(Pos[1]+1);
+
+  if( Pos[1]<lev ){
+    Pos[0] += s*cellnoise(Pos[1]);
+  }else{
+    Pos[0] += s*cellnoise(Pos[1]+1);
+  }
+  float left = floor(Pos[0]-1)+cellnoise(Pos[0]-1);
+  float mid = floor(Pos[0])+cellnoise(Pos[0]);
+  float right = floor(Pos[0]+1)+cellnoise(Pos[0]+1);
+  if( 
+    ((Pos[0] > left+w) && ( Pos[0] < mid - w )) 
+    || 
+    ((Pos[0] > mid+w ) && ( Pos[0] < right - w))
+  ){
+    if( 
+      ((Pos[1] > bot+w) && ( Pos[1] < lev - w )) 
+      || 
+      ((Pos[1] > lev+w ) && ( Pos[1] < top - w))
+    ){
+      int stoneindex=0;
+      float seeda = left;
+      float seedb = bot;
+      float bounda = mid;
+      float boundb = lev;
+      
+      if( Pos[0]>mid ){ stoneindex += 2; seeda = mid; bounda = right; }
+      if( Pos[1]>lev ){ stoneindex += 1; seedb = lev; boundb = top; }
+      int pattern = (int)floor(cellnoise(seeda,seedb)*4);
+      if( pattern == 0 ){
+            // horizontally halved
+            float nlev = (seedb + boundb)/2;
+            if( (Pos[1] > nlev - w) &&  (Pos[1] < nlev + w) ){
+              Fac = 0;
+            } else {
+              Fac = cellnoise(vector(seeda,seedb,Pos[1]>nlev));
+            }
+      } else {
+        Fac = cellnoise(vector(seeda,seedb,-1));
+      }
+    }
+  }
+}
