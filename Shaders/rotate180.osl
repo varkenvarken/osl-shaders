@@ -1,0 +1,11 @@
+point rotate_180(point p){
+  return point(1-p[0], 1-p[1], p[2]);
+}
+
+shader rotate180(
+  point Pos = P,
+
+  output point Out = P
+){
+  Out = rotate_180(Pos);
+}

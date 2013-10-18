@@ -1,0 +1,17 @@
+point rotate_point_angle(
+            point p,
+            point q,
+            float angle
+){
+  vector z = vector(0, 0, 1);
+  return rotate(p, radians(angle), q, q + z);
+}
+
+shader rotatePointAngle(
+  point Pos = P,
+  float angle = 0,
+  
+  output point Out = P
+){
+  Out = rotate_point_angle(Pos, point(0.5, 0.5, 0), angle);
+}

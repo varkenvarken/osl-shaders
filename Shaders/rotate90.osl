@@ -1,0 +1,14 @@
+point rotate_90(point p){
+  vector v = vector(0.5, 0.5, 0);
+  point q = p - v;
+  q=point(q[1],-q[0],0);
+  return q+v;
+}
+
+shader rotate90(
+  point Pos = P,
+
+  output point Out = P
+){
+  Out = rotate_90(Pos);
+}

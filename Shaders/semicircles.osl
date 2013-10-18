@@ -1,0 +1,34 @@
+shader semicircles(
+  color Color = 0.8,
+  point Pos = P, // expect uv coordinates here
+  float Scale = 8,
+  normal Normal = N,
+  float Pvar = 1,
+  float R = 1,
+  float Rvar = 0.3,
+  float Roughness = 0.2,
+  float Anisotropy = 0.5,
+
+  output float Fac = 0,
+  output closure color BSDF = 0
+){
+  vector p=Pos * Scale;
+  vector pi=floor(p);
+  int range=(int)ceil(R+Rvar);
+  for( float x=-range; x<=range; x++){
+    for( float y=-range; y<=range; y++){
+      vector pc=pi+vector(x,y,0);
+      vector pq=pc+Pvar*noise("cell",pc,1);
+      float r =R+Rvar*noise("cell",pc,2);
+      vector d=pq-p;
+      if(length(d)<r){
+        vector Tangent = cross(normalize(d),vector(0,0,1));
+        BSDF = Color * ward(Normal, Tangent, 
+            Roughness * (1-Anisotropy), 
+            Roughness / (1-Anisotropy));
+        Fac = noise("cell",pc,3);
+        return;
+      }
+    }
+  }
+}

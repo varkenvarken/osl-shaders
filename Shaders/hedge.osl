@@ -1,0 +1,45 @@
+shader hedge(
+  vector pos=P,
+  float Scale=1,
+
+  vector Dir=vector(0,0,1),
+  float  Var=0.1,
+  
+  float Size=0.3,
+  float SizeVar=0.1,
+  
+  int Seed = 42,
+  
+  output normal Nout=N,
+  output float Fac=0,
+  output float Dist=0
+){
+  vector p=pos*Scale;
+  
+  for(int xx=-1; xx<=1 && Fac == 0; xx++){
+    for(int yy=-1; yy<=1 && Fac == 0; yy++){
+      for(int zz=-1; zz<=1 && Fac == 0; zz++){
+          vector pp = p + vector(xx,yy,zz);
+          vector ip=floor(pp);
+          
+          vector leafp = ip+noise("cell",pp,Seed);
+          vector leafn = normalize(Dir 
+                                    +(noise("cell",pp,Seed+1)
+                                    -vector(0.5,0.5,0.5))*Var);
+          float  leafs = Size+SizeVar*noise("cell",pp,Seed+3);
+
+          vector in = normalize(I);
+          // ray plane intersection
+          float d = dot(leafp - p, leafn)/dot(in, leafn);
+          vector dp = leafp - (d * in + p);
+          
+          float r = length(dp); 
+          if( r < leafs ){
+            Fac=1;
+            Nout=leafn;
+            Dist = r;
+          }
+      }
+    }
+  }
+}

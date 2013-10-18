@@ -1,0 +1,31 @@
+shader MatrixDisplay(
+  point Pos = P,
+  int Offset = 0,
+  string Text = "Blender",
+  string Font = "font5x7.xml",
+
+  output float Fac = 0
+){
+  float x = Pos[0]-Offset/5.0;
+  int nchar = (int)floor(x);
+  if( nchar >= 0 && nchar < strlen(Text) ){
+    string xpath = format("//char[@name='%s']",substr(Text,nchar,1));
+    int nodeid = dict_find(Font,xpath);
+    if( nodeid > 0 ){
+      string pattern;
+      dict_value(nodeid,"pattern",pattern);
+      int row = 6-(int)floor(Pos[1]*7);
+      int col = (int)floor(mod(x,1.0)*5);
+      if( row >= 0 && row < 7 && col < 5 ){
+        string bits[5];
+        split(pattern,bits);
+        if( substr(bits[col],row,1) == "1" ){
+          float xcell = mod(mod(x,1.0)*5,1.0);
+          float ycell = mod(mod(Pos[1],1.0)*7,1.0);
+          Fac = max((0.4-hypot(xcell-0.5, ycell-0.5))/0.4, 0.0);
+        }
+      }
+    }
+  }
+
+}

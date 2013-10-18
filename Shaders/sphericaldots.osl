@@ -1,0 +1,30 @@
+#include "halton.h"
+
+vector pointonsphere(int index){
+  float z = haltonsequence(index,2)*2-1; // range [-1,1]
+  float t = haltonsequence(index,3)*M_2PI; // range [0,2pi]
+  float r = sqrt(1-z*z);
+  float s,c;
+  sincos(t,s,c);
+  return vector(s*r,c*r,z);
+}
+
+shader sphericaldots(
+  int Number = 100,
+  float Radius = 0.03,
+
+  output float Fac = 0
+){
+  point p = transform("object",P);
+  float r = length(p);
+
+  // naive approach,  slow for large number of points
+  for(int n=1; n<=Number; n++){
+     vector v = r*pointonsphere(n);
+     float d = distance(v,p);
+     if( d < Radius ){
+       Fac = Radius - d;
+       break;
+     }
+  }
+}

@@ -1,0 +1,18 @@
+shader F(
+  point Pos = P, // should be connected to uv-coordinates
+
+  output float Fac = 1
+){
+  point a=point(0.1,0.1,0);
+  point b=point(0.1,0.25,0);
+  point c=point(0.1,0.4,0);
+  point d=point(0.25,0.25,0);
+  point e=point(0.35,0.4,0);
+  float w=0.02;
+
+  if( (distance(a,c,Pos) < w)
+  ||  (distance(b,d,Pos) < w)
+  ||  (distance(c,e,Pos) < w) ){
+    Fac = 0;
+  }
+}

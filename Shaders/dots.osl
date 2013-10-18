@@ -1,0 +1,31 @@
+shader dots(
+  point Pos = P,
+  float Scale = 1,
+  float Radius = 0.05,
+
+  output float Fac = 0,
+  output color Col = 0
+){
+  point p = Pos * Scale;
+
+  float x,y;
+  for(x=-1; x<=1; x++){
+    for(y=-1; y<=1; y++){
+      for(float z=-1; z<=1; z++){
+        vector offset=vector(x,y,z);
+        point dotposition = 
+          floor(p+offset) +
+          (vector)noise("cell",
+          p+offset,1);
+        float d = distance(p,
+                    dotposition);
+        if( d < Radius ){
+          Col = noise("cell",p+offset,2);
+          Fac = Radius - d;
+          y=2; x=2; 
+          return;
+        }
+      }
+    }
+  }
+}

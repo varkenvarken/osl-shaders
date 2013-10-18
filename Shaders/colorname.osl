@@ -1,0 +1,13 @@
+shader colorname(
+  string Name="black",
+  string Colors="colors.xml",
+
+  output color Color = 0
+){
+  string xpath = concat("//color[@name='",Name,"']/text()");
+  int nodeid = dict_find(Colors, xpath);
+  if( nodeid>0 ){
+    dict_value(nodeid,"",Color); // get the contents of the node, not the value of an attribute
+    Color = Color/255;
+  }
+}

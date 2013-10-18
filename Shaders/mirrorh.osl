@@ -1,0 +1,11 @@
+point mirror_h(point p){
+  return point(1-p[0],p[1],p[2]);
+}
+
+shader MirrorH(
+  point Pos = P,
+
+  output point Out = P
+){
+  Out = mirror_h(Pos);
+}

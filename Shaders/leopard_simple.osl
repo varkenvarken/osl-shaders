@@ -1,0 +1,143 @@
+point voronoi2d(point p)
+{
+	int xx, yy, xi, yi;
+
+	xi = (int)floor(p[0]);
+	yi = (int)floor(p[1]);
+	
+	float dbest = 1e10;
+	point pbest = 1e10;
+	for (xx = xi - 1; xx <= xi + 1; xx++) {
+		for (yy = yi - 1; yy <= yi + 1; yy++) {
+				vector ip = vector(xx, yy, 0);
+				point  vp = ip + cellnoise(ip);
+				vp[2] = 0;
+				vector dp = p-vp;
+				float  d  = dot(dp,dp);
+				if (d < dbest) {
+					dbest = d;
+					pbest = vp;
+				}
+		}
+	}
+	return pbest;
+}
+
+int point_inside_polygon(
+  point p,
+  point verts[],
+  int nverts
+){
+  int i;
+  float sumangle=0;
+  vector ref=vector(0,1,0);
+  for(i=0; i<nverts; i++){
+    sumangle += acos(dot(ref, normalize(verts[i]-p)));
+  }
+  return abs(sumangle) < 1e-7;
+}
+
+shader leopard(
+  point Pos = P,
+  float Scale = 1,
+
+  color Base = 1,   // color outside rosette
+  color Edge = 0,   // color of edge blobs
+  color Core = 0.5, // color inside rosette
+  float RotVar = 0.5,// variation in orientation of rosette
+  float CornerVar = 0.05, // variation in rotation of individual corners
+  float Radius = 0.3,   // polygon size
+  float RadiusVar = 0.05, // polygon size variation
+  float BlobSize = 0.1, // size of corner blobs
+  float BlobSizeVar = 0.3, // relative size variation of corner blobs
+  float MidBlobProb = 0.01, // chance that polygon has extra blob jn the center
+  float Weight4 =1,
+  float Weight5 =8,
+  float Weight6 =1,  // relative frequency of polygon w. given number of vertices
+
+  output float Fac = 0,
+  output color Col = Base
+){
+  point p=Pos*Scale;
+
+  // determine closest point
+  point np=voronoi2d(p);
+
+  // determine number of sides
+  int n=4;
+  float wsum=Weight4+Weight5+Weight6;
+  float r=noise("cell",np);
+  if(r>Weight4/wsum){
+    if(r>(Weight4+Weight5)/wsum){
+      n=6;
+    }else{
+      n=5;
+    }
+  }
+
+  // determine position of vertices
+  point verts[6];
+  int i;
+  float segmentangle=M_2PI/n;
+  float rotation=segmentangle;//+RotVar*noise("cell",p+13);
+  float radius=Radius;//+RadiusVar*((float)noise("cell",p+5)-0.5);
+  //point z=point(np[0],np[1],1);
+  for(i=0; i<n; i++){
+    verts[i]=np+rotate(point(0,radius,0), rotation+i*segmentangle //+CornerVar*((float)noise("cell",p+7*i)-0.5)
+	, point(0,0,0),point(0,0,1));
+	//printf("%d %.1f\n",i,verts[i]);
+  }
+
+  // for each vertex, check whether we in a corner blob or one of the adjacent blobs
+  float blobsize, mblobsize, mblobmix;
+  vector d;
+  for( i=0;i<n;i++){
+
+    blobsize = BlobSize;//*(1.0+BlobSizeVar)*noise("cell",p+11*n);
+    blobsize *= blobsize;
+    //float leftd = noise("cell",p+11*n-13);
+    //float rightd = noise("cell",p+11*n-19);
+    d = verts[i]-p;
+    if (dot(d,d) < blobsize){
+	  Fac = length(d);
+	  Col = Edge;
+	  return;
+    }
+#if 0
+    mblobsize = blobsize*(0.6+noise("cell",p+11*n-29)/2.0);
+    mblobmix = 0.3+noise("cell",p+11*n-31)/2.0;
+    d = mix(verts[(i+1)%n],verts[i],mblobmix);
+    if (dot(d,d) < mblobsize){
+    	Fac = 1; 
+		Col = Edge; 
+		return;
+	}
+    mblobsize = blobsize*(0.6+noise("cell",p+11*n-37)/2.0);
+    mblobmix = 0.3+noise("cell",p+11*n-5)/2.0;
+    d = mix(verts[(i-1+n)%n],verts[i],mblobmix);
+    if (dot(d,d) < mblobsize){
+	  Fac = 1;
+	  Col = Edge;
+	  return;
+    }
+#endif
+  }
+
+  // check if we inside midpoint blob
+#if 0
+  if(noise("cell",p+3) < MidBlobProb){
+    blobsize = BlobSize*(1.0+BlobSizeVar)*noise("cell",p+113);
+    blobsize *= blobsize;
+    d=np-p;
+    if (dot(d,d) < blobsize){ 
+	// Fac=1; 
+	Col = Edge; return; }
+    
+  }
+  // check if we inside polygon
+  if (point_inside_polygon(p,verts,n)){
+     Fac = 2;
+     Col = Core;
+  }
+#endif
+}

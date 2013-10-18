@@ -1,0 +1,16 @@
+shader stripes(
+  point Pos = P,
+  int Number = 4,
+
+  output float Fac = 0
+){
+  float x = mod(Pos[0],1);
+  
+  int i;
+  for(i=1; i <= Number; i++){
+    if( x < (float)i/Number ){
+      Fac = i % 2;
+      break;
+    }
+  }
+}

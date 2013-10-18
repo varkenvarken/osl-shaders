@@ -1,0 +1,11 @@
+point mirror_xy(point p){
+  return point(p[1],p[0],p[2]);
+}
+
+shader mirrorXY(
+  point Pos = P,
+
+  output point Out = P
+){
+  Out = mirror_xy(Pos);
+}

@@ -1,0 +1,44 @@
+shader droplets(
+  vector Position = P,
+  float Scale = 5,
+
+  int Drops = 3,
+  float Time = 1.7,
+  float StartTime = 0,
+  float EndTime = 10,
+  float Amplitude = 1,
+  float Wavelength = .01,
+  float Spread = .01,
+  float Limit = 2,
+  float Damping = 0.5,
+
+  output float Height = 0
+){
+  float L = max(ceil(abs(Limit)),1);
+  
+  vector Pos = Position * Scale;
+  vector ip = floor(Pos);
+  
+  float h = 0;
+  for(float dx = -L; dx <= L; dx++){
+    for(float dy = -L; dy <= L; dy++){
+      vector p = ip+vector(dx,dy,0);
+      for(int i=0; i < Drops; i++){
+        vector center = noise("cell",p,i) + p;
+        float start = (EndTime-StartTime)*noise("cell",p,-i-1);
+        float peak = Time - start;
+        // ignore z-component
+        float dc = hypot(Pos[0]-center[0],Pos[1]-center[1]);
+        float t = dc/Wavelength;
+        float a = Amplitude * cos(t);
+        float dr= (Limit-peak)/Limit;
+        float dm=pow(dr,Damping);
+        dm *= exp(-(dc-peak)*(dc-peak)/Spread);
+        if( dm > 0 ){
+          h += a*dm;
+        }
+      }
+    }
+  }
+  Height = h;
+}

@@ -1,0 +1,19 @@
+#include "halton.h"
+
+shader haltonsquare(
+  vector p = P,
+  int Number = 100,
+  float Radius = 0.03,
+
+  output float Fac = 0
+){
+    for(int n=0; n<Number; n++){ 
+        float x = haltonsequence(n,2);
+        float y = haltonsequence(n,3);
+        float d = distance(p,vector(x,y,0));
+        if(d < Radius){
+            Fac = 1;
+            break;
+        }
+    }
+}

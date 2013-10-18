@@ -1,0 +1,27 @@
+shader droplet(
+  point Pos = P,
+
+  int Drops = 1,
+  float Time = 1, // animated
+  float StartTime = 0,
+  float EndTime = 1,
+  float Amplitude = 1,
+  float Wavelength = 1,
+  float Spread = 1,   // dispersion in wave packet I.e lower amplitude
+  float Damping = 0.99,  // dissipation of energy in time
+
+  output float Height = 0
+){
+  for(int i=0; i < Drops; i++){
+    vector center = noise("cell",i,1);
+    float start = (EndTime-StartTime)*noise("cell",i,2);
+    float peak = Time - start;
+    // ignore z-component
+    float dc = hypot(Pos[0]-center[0],Pos[1]-center[1]);
+    float t = dc/Wavelength;
+    float a = Amplitude * cos(t);
+    a *= pow(Damping,start);
+    a *= exp(-(dc-peak)*(dc-peak)/Spread);
+    Height += a;  
+  }
+}

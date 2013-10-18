@@ -1,0 +1,11 @@
+shader range(
+  float Value = 0,
+  float Low = 0,
+  float High = 0,
+
+  output float Fac = 0
+){
+  if( Value >= Low && Value <= High ){
+    Fac = 1;
+  }
+}

@@ -1,0 +1,62 @@
+shader terrain(
+  point p = P,
+  
+  string UpAxis = "z",
+  int InvertNormal=0,
+  int MirrorHeight=0,
+  int MirrorAngle=0,
+
+  float UpperLimit = 0.5,
+  float LimitVar = 0.1,
+  float SteepestAngle = 45,
+  float AngleVar = 5,
+  float NoiseScale = 1,
+  
+  output int High=0,
+  output int Steep=0
+){
+  vector up[6]={
+    vector(1,0,0),  // x-axis
+    vector(-1,0,0),  // negative x-axis
+    vector(0,1,0),  // y-axis
+    vector(0,-1,0),  // negative y-axis
+    vector(0,0,1),  // z-axis
+    vector(0,0,-1)  // negative z-axis
+  };
+  
+  int i=0;
+  if(startswith(UpAxis,"-")){
+    i++;
+  }
+  string last=substr(UpAxis,-1);
+  if(last=="z"){
+    i+=4;
+  }else{
+    if(last=="y"){
+      i+=2;
+    }else{
+      if(last!="x"){
+        warning("Unknown axis [%s]",UpAxis);
+      }
+    }
+  }
+  vector axis=up[i];
+
+  normal n=N;
+  if(InvertNormal){
+    n *= -1;
+  }
+
+  float d=length(p*axis);
+  if(MirrorHeight){
+    d=abs(d);
+  }
+  float angle=degrees(acos(dot(n,axis)));
+  if(MirrorAngle){
+    angle=abs(angle);
+  }
+
+  High = d>(UpperLimit+LimitVar*noise("perlin",p*NoiseScale,1));
+
+  Steep = angle>(SteepestAngle+AngleVar*noise("perlin",p*NoiseScale,2));
+}

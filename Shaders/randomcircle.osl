@@ -1,0 +1,13 @@
+shader randomcircle(
+  point Pos = P,
+  int Seed = 1,
+
+  output color Col = 0
+){
+  point center=(vector)noise("cell",
+  Seed);                             // need cast bug in Blender 2.67b (or rather in OSL)
+  center[2] = 0;
+  if(distance(Pos, center) < 0.2){
+    Col = 1;
+  }
+}

@@ -1,0 +1,55 @@
+shader hedge(
+  vector pos=P,
+  float Scale=1,
+
+  vector Dir=vector(0,0,1),
+  float  Var=0.1,
+  
+  string LeafImg="",
+  float Size=0.3,
+  float SizeVar=0.1,
+  
+  int Seed = 42,
+  
+  output normal Nout=N,
+  output float Fac=0,
+  output color Color=0
+){
+  vector p=pos*Scale;
+  
+  for(int xx=-1; xx<=1 && Fac == 0; xx++){
+    for(int yy=-1; yy<=1 && Fac == 0; yy++){
+      for(int zz=-1; zz<=1 && Fac == 0; zz++){
+          vector pp = p + vector(xx,yy,zz);
+          vector ip=floor(pp);
+          
+          vector leafp = ip+noise("cell",pp,Seed);
+          vector leafn = normalize(Dir + (noise("cell",pp,Seed+1)-vector(0.5,0.5,0.5))*Var);
+          vector leafk = noise("cell",pp,Seed+2);
+          vector leafj = normalize(cross(leafn,leafk));
+          leafk = cross(leafn,leafj);// perpendicular unit vecs, no need to normalize
+          float  leafs = Size+SizeVar*noise("cell",pp,Seed+3);
+
+          vector in = normalize(I);
+          // ray plane intersection
+          float d = dot(leafp - p, leafn)/dot(in, leafn);
+          vector dp = leafp - (d * in + p);
+          
+          float dpx = dot(dp,leafk);
+          float dpy = dot(dp,leafj);
+
+          if( dpx>0 && dpy>0){
+                float u = dpx/leafs;
+                float v = 1-dpy/leafs;
+                float alpha=0;
+                color c=texture(LeafImg,u,v,"alpha",alpha);
+                if(alpha){
+                    Fac=1;
+                    Nout=leafn;
+                    Color=c;
+                }
+          }
+      }
+    }
+  }
+}

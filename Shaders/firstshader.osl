@@ -1,0 +1,6 @@
+shader darken(
+  color In = 1,
+  output color Out = 1
+){
+  Out = In * 0.5;
+}

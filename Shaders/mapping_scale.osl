@@ -1,0 +1,8 @@
+shader scale(
+  vector Vector = 0,
+  vector Scale  = 1,
+  
+  output vector Result = Vector
+){
+  Result = Vector * Scale;
+}
