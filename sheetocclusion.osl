@@ -1,0 +1,14 @@
+shader sheet_occlusion (
+  normal Normal=N,
+  float Radius=0.05,
+
+  output float Fac=1
+){
+  // calculate angle of incidence
+  float alpha = acos(dot(I,Normal));
+  // treat front and back the same
+  alpha = alpha > M_PI_2 ? M_PI - alpha : alpha;
+  //printf("%.2f %.2f\n",alpha,tan(alpha));
+  // calculate the non occluded fraction 
+  Fac = 1 - Radius - Radius * tan(alpha);
+}
