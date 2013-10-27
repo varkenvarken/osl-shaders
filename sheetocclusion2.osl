@@ -1,0 +1,19 @@
+shader sheet_occlusion2 (
+  normal Normal=N,
+  float Radius=0.05,
+
+  output float Fac=1,
+  output float Var=1
+){
+  // calculate angle of incidence
+  float alpha = acos(dot(I,Normal));
+  // treat front and back the same
+  alpha = alpha > M_PI_2 ? M_PI - alpha : alpha;
+  // calculate the non occluded fraction 
+  Fac = cos(alpha) - 2 * Radius;
+  // calculate the range of the visible normals
+  if( Fac < 0 ){
+    Fac = 0;
+    Var = cos(alpha) / (2 * Radius);
+  }
+}
