@@ -1,0 +1,23 @@
+#define flip(x) (mod(x,1)>0.5?1.0-mod(x,1):mod(x,1))
+#define mod2(x) ((int)(fabs(floor(x)))%2)
+
+shader squares(
+  point Pos=P,
+  float Scale=1,
+  float Var=0,
+
+  output float Edge=0.25,
+  output float Center=0.5,
+  output float Fac=0
+){
+  point p = Pos * Scale;
+  point c = 0.5;
+  
+  point pc = point(flip(p[0]), flip(p[1]), flip(p[2]));
+  
+  Edge = min(pc[0], min(pc[1], pc[2]));
+  Center = distance(pc, c);
+
+  Fac = (mod2(p[0]) == mod2(p[1])) == mod2(p[2]);
+  Fac = fabs(Fac - Var * noise("cell", p));
+}
