@@ -1,0 +1,45 @@
+shader sprinkles(
+ point Pos = P,
+ float Scale = 1,
+ int Np = 1,
+ int Seed = 42,
+ float Radius = 0.05,
+ float Size = 1,
+ output float Fac = 0,
+ output float Random = 0
+){
+ point p = Pos * Scale;
+ point f = floor(p);
+ 
+ int xx,yy,np;
+ vector one = 1;
+ 
+ for( xx=-1; xx<=1; xx++){
+  for( yy=-1; yy<=1; yy++){
+   point ff = f + vector(xx,yy,0);
+   float u=Seed;
+ 
+   for( np=0; np < Np; np++){
+    vector pd1 = 2*noise("cell",ff,u)-one;
+    vector pd2 = 2*noise("cell",ff,u+1)-one;
+    
+    point p1 = ff + pd1;
+    point p2 = ff + pd2;
+    
+    p2 = (p2 - p1)*Size+p1;
+    
+    // reduce to 2D 
+    p1[2]=0;
+    p2[2]=0;
+    p [2]=0;
+    
+    float r = distance(p1,p2,p);
+    if ( r < Radius ) {
+      Fac = 1 - r/Radius;
+      Random = noise("cell",ff,u+2);
+    }
+    u+=3;
+   }
+  }
+ }
+}
