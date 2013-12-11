@@ -1,0 +1,75 @@
+#define SLOPE 1/sqrt(3)
+#define SIDE sqrt(.75)
+#define D60c cos(radians(60))
+#define D60s sin(radians(60))
+ 
+void hex(float x, float y, output float hx[6], output float hy[6]){
+  hx[0]=x;
+  hy[0]=y;
+  hx[1]=x*D60c-y*D60s;
+  hy[1]=y*D60c+x*D60s;
+  hx[2]=x*D60c+y*D60s;;
+  hy[2]=y*D60c-x*D60s;
+  hx[3]=-hx[0];
+  hy[3]=-hy[0];
+  hx[4]=-hx[1];
+  hy[4]=-hy[1];
+  hx[5]=-hx[2];
+  hy[5]=-hy[2];
+}
+
+int in_hexagon(
+  float px, float py, 
+  float cx, float cy, float r, 
+  output float d
+){
+  d=hypot(px-cx,py-cy);
+  if(d>r){ return 0; }
+  float hx[6],hy[6];
+  hex(px-cx, py-cy, hx, hy);
+  for(int h=0; h<6; h++){
+    if((abs(hy[h]) < SLOPE*hx[h]) && (hx[h]< r*SIDE)){
+      d=abs(hx[h]);
+      return 1;
+    }
+  }
+  return 0;
+}
+
+#define CELL noise("cell",seed++)
+
+float pattern(float x, float y, int Seed, int Kernels){
+  int seed=Seed;
+  int n=(int)(1+Kernels*CELL);
+  float hx=0, maxx=0;
+  for(int f=0; f<n; f++){
+    float hy=0;
+    float r=0.2*CELL;
+    float d;
+    if(in_hexagon(x,y, hx,hy,r, d)){
+      return d;
+    }
+    hx=SIDE*CELL;
+    if(hx>maxx){maxx=hx;}
+  }
+  if(x<maxx && abs(y)<0.01){ return 1; }
+}
+
+shader snowflake(
+  point Pos=P,
+
+  int Seed=0,
+  int Kernels=15,
+  
+  output float Fac=0
+){
+  float hx[6],hy[6];
+
+  hex(2*(Pos[0]-0.5), 2*(Pos[1]-0.5), hx, hy);
+
+  for(int h=0; h<6 && Fac==0; h++){
+    if(abs(hy[h]) < SLOPE*hx[h]){
+      Fac=pattern(hx[h],hy[h],Seed, Kernels);
+    }
+  }
+}
