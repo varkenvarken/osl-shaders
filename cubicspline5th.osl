@@ -1,0 +1,303 @@
+#define MAXDEPTH 20
+// stacksize is a function of maxdepth but array sizes are integers only, not expressions :-(
+#define STACKSIZE 10000
+// e=ldexp(1,-maxdepth)
+#define EPSILON exp2(-MAXDEPTH)
+
+void ConvertToBezierForm(point p, point V[4], point w[6])
+{
+    int 	i, j, k, m, n, ub, lb;	
+    int 	row, column;		// Table indices		
+    vector 	c[4];		// V(i)'s - P			
+    vector 	d[3];		// V(i+1) - V(i)		
+    float 	cdTable[12];		// Dot product of c, d		
+    float z[12] = {	// Precomputed "z" for cubics	
+	 1.0, 0.6, 0.3, 0.1,
+	 0.4, 0.6, 0.6, 0.4,
+	 0.1, 0.3, 0.6, 1.0
+    };
+
+    //Determine the c's -- these are vectors created by subtracting
+    // point P from each of the control points				
+    for (i = 0; i <= 3; i++) {
+      c[i]=V[i]-p;
+    }
+    // Determine the d's -- these are vectors created by subtracting
+    // each control point from the next					
+    for (i = 0; i <= 3 - 1; i++) { 
+      d[i]=3*(V[i+1]-V[i]);
+    }
+
+    // Create the c,d table -- this is a table of dot products of the 
+    // c's and d's							
+    for (row = 0; row <= 3 - 1; row++) {
+		  for (column = 0; column <= 3; column++) {
+	    	cdTable[row*4+column] = dot(d[row], c[column]);
+		  }
+    }
+
+    // Now, apply the z's to the dot products, on the skew diagonal
+    // Also, set up the x-values, making these "points"		
+    for (i = 0; i <= 5; i++) {
+		  w[i][1] = 0.0;
+		  w[i][0] = (float)(i) / 5;
+    }
+
+    n = 3;
+    m = 2;
+    for (k = 0; k <= n + m; k++) {
+		  lb = max(0, k - m);
+		  ub = min(k, n);
+		  for (i = lb; i <= ub; i++) {
+	    	j = k - i;
+	    	w[i+j][1] += cdTable[j*4+i] * z[j*4+i];
+		  }
+    }
+}
+
+int CrossingCount(point w[], int wtop)
+{
+    int 	i;	
+    int 	n_crossings = 0;	//  Number of zero-crossings	
+    int		sign, old_sign;		//  Sign of coefficients	
+
+    sign = old_sign = (w[wtop][1] >= 0);
+    for (i = 1; i <= 5; i++) {
+	  	sign = (w[wtop+i][1] >= 0);
+		  if (sign != old_sign) n_crossings++;
+		    old_sign = sign;
+    }
+    return n_crossings;
+}
+
+float ComputeXIntercept(point w[], int wtop)
+{
+    float XLK, YLK, XNM, YNM, XMK, YMK;
+    float det, detInv;
+    float	 S,	X;
+
+    XLK = 1.0;
+    YLK = 0.0;
+    XNM = w[wtop+5][0] - w[wtop][0];
+    YNM = w[wtop+5][1] - w[wtop][1];
+    XMK = w[wtop][0];
+    YMK = w[wtop][1];
+
+    det = XNM*YLK - YNM*XLK;
+    detInv = 1.0/det;
+
+    S = (XNM*YMK - YNM*XMK) * detInv;
+
+    X = XLK * S;
+
+    return X;
+}
+
+int ControlPolygonFlatEnough(point w[], int wtop)
+{
+    int     i;        // Index variable        
+    float  value;
+    float  max_distance_above;
+    float  max_distance_below;
+    float  error;        // Precision of root        
+    float  intercept_1,
+            intercept_2,
+            left_intercept,
+            right_intercept;
+    float  a, b, c;    // Coefficients of implicit    
+            // eqn for line from V[0]-V[deg]
+    float  det, dInv;
+    float  a1, b1, c1, a2, b2, c2;
+
+    // Derive the implicit equation for line connecting first *'
+    //  and last control points 
+    a = w[wtop][1] - w[wtop+5][1];
+    b = w[wtop+5][0] - w[wtop][0];
+    c = w[wtop][0] * w[wtop+5][1] - w[wtop+5][0] * w[wtop][1];
+
+    max_distance_above = max_distance_below = 0.0;
+    
+    for (i = 1; i < 5; i++)
+    {
+        value = a * w[wtop+i][0] + b * w[wtop+i][1] + c;
+       
+        if (value > max_distance_above)
+        {
+            max_distance_above = value;
+        }
+        else if (value < max_distance_below)
+        {
+            max_distance_below = value;
+        }
+    }
+
+    //  Implicit equation for zero line 
+    a1 = 0.0;
+    b1 = 1.0;
+    c1 = 0.0;
+
+    //  Implicit equation for "above" line 
+    a2 = a;
+    b2 = b;
+    c2 = c - max_distance_above;
+
+    det = a1 * b2 - a2 * b1;
+    dInv = 1.0/det;
+
+    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
+
+    //  Implicit equation for "below" line 
+    a2 = a;
+    b2 = b;
+    c2 = c - max_distance_below;
+
+    det = a1 * b2 - a2 * b1;
+    dInv = 1.0/det;
+
+    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
+
+    // Compute intercepts of bounding box    
+    left_intercept = min(intercept_1, intercept_2);
+    right_intercept = max(intercept_1, intercept_2);
+
+    error = right_intercept - left_intercept;
+
+    return (error < EPSILON)? 1 : 0;
+}
+
+point Bezier(point V[], int degree, float t)
+{
+    int 	i, j;		// Index variables	
+    point 	Vtemp[36];
+
+
+    // Copy control points	
+    for (j =0; j <= degree; j++) {
+		  Vtemp[j] = V[j];
+    }
+
+    // Triangle computation	
+    for (i = 1; i <= degree; i++) {	
+		  for (j =0 ; j <= degree - i; j++) {
+	    	Vtemp[i*6+j][0] =
+	      		(1.0 - t) * Vtemp[6*(i-1)+j][0] + t * Vtemp[6*(i-1)+j+1][0];
+	    	Vtemp[i*6+j][1] =
+	      		(1.0 - t) * Vtemp[6*(i-1)+j][1] + t * Vtemp[6*(i-1)+j+1][1];
+		  }
+    }
+    
+    return (Vtemp[6*degree]);
+}
+
+void DeCasteljau(point w[], float t, int wtop, int wend)
+{
+    int 	i, j;		// Index variables	
+    point 	Vtemp[36];
+
+
+    // Copy control points	
+    for (j =0; j <= 5; j++) {
+		  Vtemp[j] = w[wtop+j];
+    }
+
+    // Triangle computation	
+    for (i = 1; i <= 5; i++) {	
+		  for (j =0 ; j <= 5 - i; j++) {
+	    	Vtemp[i*6+j][0] =
+	      		(1.0 - t) * Vtemp[6*(i-1)+j][0] + t * Vtemp[6*(i-1)+j+1][0];
+	    	Vtemp[i*6+j][1] =
+	      		(1.0 - t) * Vtemp[6*(i-1)+j][1] + t * Vtemp[6*(i-1)+j+1][1];
+		  }
+    }
+    
+    for (j = 0; j <= 5; j++) {
+	    	w[wend+j]  = Vtemp[j*6];
+		  }
+ 	for (j = 0; j <= 5; j++) {
+	    	w[wend+6+j] = Vtemp[6*(5-j)+j];
+		  }
+}
+
+#define POP wtop+=6;wn--
+
+int FindRoots(point w0[6], float t[5]){
+  point w[STACKSIZE];
+  int wtop=0;
+  int wend=0;
+  int wn=0;
+  for(int k=0;k<6;k++){w[wend++]=w0[k]  ;}
+  wn++;
+  int nc=0;
+  while(wn>0){
+    //printf("[%d]",wn);
+    int cc=CrossingCount(w,wtop); // w[:5]
+    if(cc==0){
+      POP;
+      continue;
+    }
+    if(cc==1){
+      if(wn>=MAXDEPTH){
+        t[nc++]= (w[wtop][0]+w[wtop+5][0])/2;
+        //printf(" MAX ");
+        POP;
+        continue;
+      }
+      if(ControlPolygonFlatEnough(w,wtop)){ // w[:5]
+        t[nc++]= ComputeXIntercept(w,wtop);
+        //printf(" FLAT (%.1f | %.1f)",w[wtop],w[wtop+5]);
+        POP;
+        continue;
+      }
+    }
+    // not flat or more than one crossing
+    DeCasteljau(w,0.5,wtop,wend);  //left=[wend:wend+5], right=[wend+6;wend+11]
+    for(int k=0;k<6;k++){w[wtop+k]=w[wend+6+k];};
+    wn++; wend+=6;
+  }
+  return nc;
+}
+
+point NearestPoint(point p, point V[4], float d, float tb){
+    // Convert problem to 5th-degree Bezier form
+    point w0[6];
+    ConvertToBezierForm(p, V, w0);
+
+    //Find all possible roots of 5th-degree equation
+    float t[5],dt;
+    int n_solutions = FindRoots(w0,t);
+
+    //printf("%d %.2f\n",n_solutions,t[0]);
+    
+    // check which root is closest, also check end points
+    tb=0;
+    point bp=V[0];
+    vector dv=V[0]-p;
+    d=dot(dv,dv);
+    for(int n=0; n<n_solutions; n++){
+      point pt=Bezier(V,3,t[n]);
+      dv=pt-p;
+      dt=dot(dv,dv);
+      if(dt<d){ d=dt; tb=t[n]; bp=pt; }
+    }
+    dv=V[3]-p;
+    dt=dot(dv,dv);
+    if(dt<d){ d=dt; tb=1; bp=V[3]; }
+    return bp;
+}
+
+shader cubicsplinetest(
+  point Pos=P,
+  point P0=0,
+  point P1=0,
+  point P2=0,
+  point P3=0,
+  float Width=0.02,
+  output float Fac=0
+){
+  float d,t;
+  point V[4]={P0,P1,P2,P3};
+  point p=NearestPoint(Pos,V,d,t);
+  if(d<Width){
+    Fac=1;
+  }
+}
