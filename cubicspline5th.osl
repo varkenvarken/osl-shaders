@@ -4,6 +4,9 @@
 // e=ldexp(1,-maxdepth)
 #define EPSILON exp2(-MAXDEPTH)
 
+// undefine 2D macro to make all calculations 3D
+#define CALC2D
+
 void ConvertToBezierForm(point p, point V[4], point w[6])
 {
     int 	i, j, k, m, n, ub, lb;	
@@ -20,19 +23,33 @@ void ConvertToBezierForm(point p, point V[4], point w[6])
     //Determine the c's -- these are vectors created by subtracting
     // point P from each of the control points				
     for (i = 0; i <= 3; i++) {
+#ifdef CALC2D
+      c[i][0]=V[i][0]-p[0];
+      c[i][1]=V[i][1]-p[1];
+#else
       c[i]=V[i]-p;
+#endif
     }
     // Determine the d's -- these are vectors created by subtracting
     // each control point from the next					
     for (i = 0; i <= 3 - 1; i++) { 
+#ifdef CALC2D
+      d[i][0]=3*(V[i+1][0]-V[i][0]);
+      d[i][1]=3*(V[i+1][1]-V[i][1]);
+#else
       d[i]=3*(V[i+1]-V[i]);
+#endif
     }
 
     // Create the c,d table -- this is a table of dot products of the 
     // c's and d's							
     for (row = 0; row <= 3 - 1; row++) {
 		  for (column = 0; column <= 3; column++) {
+#ifdef CALC2D
+	    	cdTable[row*4+column] = d[row][0]*c[column][0]+d[row][1]*c[column][1];
+#else
 	    	cdTable[row*4+column] = dot(d[row], c[column]);
+#endif
 		  }
     }
 
@@ -77,20 +94,20 @@ float ComputeXIntercept(point w[], int wtop)
     float	 S,	X;
 
     XLK = 1.0;
-    YLK = 0.0;
+    //YLK = 0.0;
     XNM = w[wtop+5][0] - w[wtop][0];
     YNM = w[wtop+5][1] - w[wtop][1];
     XMK = w[wtop][0];
     YMK = w[wtop][1];
 
-    det = XNM*YLK - YNM*XLK;
-    detInv = 1.0/det;
+    //det = XNM*YLK - YNM*XLK;
+    //detInv = 1.0/det;
 
-    S = (XNM*YMK - YNM*XMK) * detInv;
+    //S = (XNM*YMK - YNM*XMK) * detInv;
 
-    X = XLK * S;
+    //X = XLK * S;
 
-    return X;
+    return (XNM*YMK - YNM*XMK) / - YNM;
 }
 
 int ControlPolygonFlatEnough(point w[], int wtop)
@@ -132,29 +149,31 @@ int ControlPolygonFlatEnough(point w[], int wtop)
     }
 
     //  Implicit equation for zero line 
-    a1 = 0.0;
-    b1 = 1.0;
-    c1 = 0.0;
+    //  a1 = 0.0;
+    //b1 = 1.0;
+    //c1 = 0.0;
 
     //  Implicit equation for "above" line 
     a2 = a;
     b2 = b;
     c2 = c - max_distance_above;
 
-    det = a1 * b2 - a2 * b1;
-    dInv = 1.0/det;
+    //det = a1 * b2 - a2 * b1;
+    //dInv = 1.0/det;
 
-    intercept_1 = (b1 * c2 - b2 * c1) * dInv;
+    //intercept_1 = (b1 * c2 - b2 * c1) * dInv;
+    intercept_1 = ( c2 ) / (-a2);
 
     //  Implicit equation for "below" line 
     a2 = a;
     b2 = b;
     c2 = c - max_distance_below;
 
-    det = a1 * b2 - a2 * b1;
-    dInv = 1.0/det;
+    //det = a1 * b2 - a2 * b1;
+    //dInv = 1.0/det;
 
-    intercept_2 = (b1 * c2 - b2 * c1) * dInv;
+    //intercept_2 = (b1 * c2 - b2 * c1) * dInv;
+    intercept_2 = ( c2 ) / -a2;
 
     // Compute intercepts of bounding box    
     left_intercept = min(intercept_1, intercept_2);
@@ -173,7 +192,12 @@ point Bezier(point V[], int degree, float t)
 
     // Copy control points	
     for (j =0; j <= degree; j++) {
+#ifdef CALC2D
+		  Vtemp[j][0] = V[j][0];
+		  Vtemp[j][1] = V[j][1];
+#else
 		  Vtemp[j] = V[j];
+#endif
     }
 
     // Triangle computation	
@@ -183,12 +207,17 @@ point Bezier(point V[], int degree, float t)
 	      		(1.0 - t) * Vtemp[6*(i-1)+j][0] + t * Vtemp[6*(i-1)+j+1][0];
 	    	Vtemp[i*6+j][1] =
 	      		(1.0 - t) * Vtemp[6*(i-1)+j][1] + t * Vtemp[6*(i-1)+j+1][1];
+#ifndef CALC2D
+	    	Vtemp[i*6+j][2] =
+	      		(1.0 - t) * Vtemp[6*(i-1)+j][2] + t * Vtemp[6*(i-1)+j+1][2];
+#endif
 		  }
     }
     
     return (Vtemp[6*degree]);
 }
 
+// this one is used for the 5th order interpolation only so should always be just 2d
 void DeCasteljau(point w[], float t, int wtop, int wend)
 {
     int 	i, j;		// Index variables	
@@ -197,17 +226,24 @@ void DeCasteljau(point w[], float t, int wtop, int wend)
 
     // Copy control points	
     for (j =0; j <= 5; j++) {
+#ifdef CALC2D
+		  Vtemp[j][0] = w[wtop+j][0];
+		  Vtemp[j][1] = w[wtop+j][1];
+#else
 		  Vtemp[j] = w[wtop+j];
+#endif
     }
 
-    // Triangle computation	
+    // Triangle computation
+    int d=0;	
     for (i = 1; i <= 5; i++) {	
 		  for (j =0 ; j <= 5 - i; j++) {
 	    	Vtemp[i*6+j][0] =
-	      		(1.0 - t) * Vtemp[6*(i-1)+j][0] + t * Vtemp[6*(i-1)+j+1][0];
+	      		(1.0 - t) * Vtemp[d+j][0] + t * Vtemp[d+j+1][0];
 	    	Vtemp[i*6+j][1] =
-	      		(1.0 - t) * Vtemp[6*(i-1)+j][1] + t * Vtemp[6*(i-1)+j+1][1];
+	      		(1.0 - t) * Vtemp[d+j][1] + t * Vtemp[d+j+1][1];
 		  }
+          d+=6;
     }
     
     for (j = 0; j <= 5; j++) {
@@ -257,6 +293,52 @@ int FindRoots(point w0[6], float t[5]){
   return nc;
 }
 
+// note that might gain something by directly comparing to width and breaking out instead of trying to find the nearest point so this adaption from NearestPoint does just that
+
+int CloseEnough(point p, point V[4], float d, float Width2){
+    // Convert problem to 5th-degree Bezier form
+    point w0[6];
+    ConvertToBezierForm(p, V, w0);
+
+    //Find all possible roots of 5th-degree equation
+    float t[5],dt;
+    int n_solutions = FindRoots(w0,t);
+
+    //printf("%d %.2f\n",n_solutions,t[0]);
+    
+    // check which root is closest, also check end points
+#ifdef CALC2D
+    vector dv=vector(V[0][0]-p[0],V[0][1]-p[1],0);
+    d=dv[0]*dv[0]+dv[1]*dv[1];
+    if(d < Width2) return 1;
+    for(int n=0; n<n_solutions; n++){
+      point pt=Bezier(V,3,t[n]);
+      dv[0]=pt[0]-p[0];
+      dv[1]=pt[1]-p[1];
+      d=dv[0]*dv[0]+dv[1]*dv[1];
+      if(d < Width2) return 1;
+    }
+    dv[0]=V[3][0]-p[0];
+    dv[1]=V[3][1]-p[1];
+    d=dv[0]*dv[0]+dv[1]*dv[1];
+    if(d < Width2) return 1;
+#else
+    vector dv=V[0]-p;
+    d=dot(dv,dv);
+    if(d < Width2) return 1;
+    for(int n=0; n<n_solutions; n++){
+      point pt=Bezier(V,3,t[n]);
+      dv=pt-p;
+      d=dot(dv,dv);
+      if(d < Width2) return 1;
+    }
+    dv=V[3]-p;
+    d=dot(dv,dv);
+    if(d < Width2) return 1;
+#endif
+    return 0;
+}
+
 point NearestPoint(point p, point V[4], float d, float tb){
     // Convert problem to 5th-degree Bezier form
     point w0[6];
@@ -270,6 +352,21 @@ point NearestPoint(point p, point V[4], float d, float tb){
     
     // check which root is closest, also check end points
     tb=0;
+#ifdef CALC2D
+    point bp=point(V[0][0],V[0][1],0);
+    vector dv=vector(V[0][0]-p[0],V[0][1]-p[1],0);
+    d=dv[0]*dv[0]+dv[1]*dv[1];
+    for(int n=0; n<n_solutions; n++){
+      point pt=Bezier(V,3,t[n]);
+      dv[0]=pt[0]-p[0];
+      dv[1]=pt[1]-p[1];
+      dt=dv[0]*dv[0]+dv[1]*dv[1];
+      if(dt<d){ d=dt; tb=t[n]; bp=pt; }
+    }
+    dv[0]=V[3][0]-p[0];
+    dv[1]=V[3][1]-p[1];
+    dt=dv[0]*dv[0]+dv[1]*dv[1];
+#else
     point bp=V[0];
     vector dv=V[0]-p;
     d=dot(dv,dv);
@@ -281,6 +378,7 @@ point NearestPoint(point p, point V[4], float d, float tb){
     }
     dv=V[3]-p;
     dt=dot(dv,dv);
+#endif
     if(dt<d){ d=dt; tb=1; bp=V[3]; }
     return bp;
 }
@@ -296,8 +394,7 @@ shader cubicsplinetest(
 ){
   float d,t;
   point V[4]={P0,P1,P2,P3};
-  point p=NearestPoint(Pos,V,d,t);
-  if(d<Width){
+  if(CloseEnough(Pos,V,d,Width*Width)){
     Fac=1;
   }
 }
