@@ -1,0 +1,89 @@
+int in_rectangle( // return true id 2D point p is in rectangle centered at C
+  point p, 
+  point c, 
+  float w, 
+  float h,
+  
+  float a, 
+
+  output float dist, 
+  output point uv
+){
+  point pr = rotate(p, a, c, c+vector(0,0,1));
+  
+  float x1=c[0]-w/2;
+  float y1=c[1]-h/2;
+  uv[0]=(pr[0]-x1)/w;
+  uv[1]=(pr[1]-y1)/h;
+
+  if(uv[0]>=0 && uv[0]<=1 && uv[1]>=0 && uv[1]<=1){
+    dist=min(min(uv[0],1-uv[0]),min(uv[1],1-uv[1]));
+    return 1;
+  }
+  return 0;
+}
+
+// bubble sort. fast enough for small collections
+void sort(int np, output float z[], output vector p[], output float f[], output float g[], float h[]){
+    int n=np;
+    for(int j=0; j<np; j++){
+       for(int i=1; i < n; i++){
+          if( z[i-1] > z[i] ){
+             float tz=z[i-1]; z[i-1]=z[i]; z[i]=tz;
+             float tf=f[i-1]; f[i-1]=f[i]; f[i]=tf;
+             float tg=g[i-1]; g[i-1]=g[i]; g[i]=tg;
+             float th=h[i-1]; h[i-1]=h[i]; h[i]=th;
+             point tp=p[i-1]; p[i-1]=p[i]; p[i]=tp;
+          }
+       }
+       n--;
+    }
+}
+
+shader greebles(
+  point Pos=P,
+  float Scale=1,
+  float PositionVariance=1,
+  float Size=0.3,
+  float WidthVariance=0.1,
+  float HeightVariance=0.1,
+  float AngleVariance=0,
+  
+  int Seed=0,
+
+  output float Fac=0,
+  output float Bump=0,
+  output float Dist=0,
+  output vector UV=0
+){
+  point p=Pos*Scale;
+  point ip=point(floor(p[0]), floor(p[1]), floor(p[2]));
+  float z=-1;
+  float vz[27];
+  vector vp[27];
+  float vx[27];
+  float vy[27];
+  float va[27];
+  
+  int n=0;
+  for(float ix=ip[0]-1;ix<=ip[0]+1;ix++){
+    for(float iy=ip[1]-1;iy<=ip[1]+1;iy++){
+      for(float iz=ip[2]-1; iz<=ip[2]+1; iz++){
+        vp[n] = vector(ix,iy,iz);
+        vp[n] += PositionVariance*(vector)noise("cell",vp[n],Seed);
+        vz[n] = noise("cell",vp[n],Seed+1);
+        vx[n] = Size+WidthVariance*noise("cell",vp[n],Seed+2);
+        vy[n] = Size+HeightVariance*noise("cell",vp[n],Seed+3);
+        va[n] = AngleVariance*(2*noise("cell",vp[n],Seed+4)-1);
+        n++;
+      }
+    }
+  }
+  sort(27, vz, vp, vx, vy, va);
+  for(int n=0; n<27 && Fac == 0; n++){
+    if(in_rectangle(p, vp[n], vx[n], vy[n], va[n], Dist, UV)){
+      Fac=1;
+      Bump=(float)(n+1)/28; // maybe add bevel based on distance
+    }
+  }
+}
