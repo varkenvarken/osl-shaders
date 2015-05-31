@@ -1,0 +1,143 @@
+/* this is node_texture.h from Blender 2.74 with all excess bagage removed */
+/* the VoronoiAll shader I implemented is at the end (varkenvarken) */
+
+
+/*
+ * Copyright 2011-2013 Blender Foundation
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Voronoi Distances */
+
+/* For some reason most of the distance metrics were commented out in the */
+/* original node_texture.h I just restored that (varkenvarken) */
+
+float voronoi_distance(string distance_metric, vector d, float e)
+{
+	if (distance_metric == "Distance Squared")
+		return dot(d, d);
+	if (distance_metric == "Actual Distance")
+		return length(d);
+	if (distance_metric == "Manhattan")
+		return fabs(d[0]) + fabs(d[1]) + fabs(d[2]);
+	if (distance_metric == "Chebychev")
+		return max(fabs(d[0]), max(fabs(d[1]), fabs(d[2])));
+	if (distance_metric == "Minkovsky 1/2")
+		return sqrt(fabs(d[0])) + sqrt(fabs(d[1])) + sqrt(fabs(d[1]));
+	if (distance_metric == "Minkovsky 4")
+		return sqrt(sqrt(dot(d * d, d * d)));
+	if (distance_metric == "Minkovsky")
+		return pow(pow(fabs(d[0]), e) + pow(fabs(d[1]), e) + pow(fabs(d[2]), e), 1.0 / e);
+	
+	return 0.0;
+}
+
+/* Voronoi / Worley like */
+
+color cellnoise_color(point p)
+{
+	float r = cellnoise(p);
+	float g = cellnoise(point(p[1], p[0], p[2]));
+	float b = cellnoise(point(p[1], p[2], p[0]));
+
+	return color(r, g, b);
+}
+
+void voronoi(point p, string distance_metric, float e, float da[4], point pa[4])
+{
+	/* returns distances in da and point coords in pa */
+	int xx, yy, zz, xi, yi, zi;
+
+	xi = (int)floor(p[0]);
+	yi = (int)floor(p[1]);
+	zi = (int)floor(p[2]);
+
+	da[0] = 1e10;
+	da[1] = 1e10;
+	da[2] = 1e10;
+	da[3] = 1e10;
+
+	for (xx = xi - 1; xx <= xi + 1; xx++) {
+		for (yy = yi - 1; yy <= yi + 1; yy++) {
+			for (zz = zi - 1; zz <= zi + 1; zz++) {
+				point ip = point(xx, yy, zz);
+				point vp = (point)cellnoise_color(ip);
+				point pd = p - (vp + ip);
+				float d = voronoi_distance(distance_metric, pd, e);
+
+				vp += point(xx, yy, zz);
+
+				if (d < da[0]) {
+					da[3] = da[2];
+					da[2] = da[1];
+					da[1] = da[0];
+					da[0] = d;
+
+					pa[3] = pa[2];
+					pa[2] = pa[1];
+					pa[1] = pa[0];
+					pa[0] = vp;
+				}
+				else if (d < da[1]) {
+					da[3] = da[2];
+					da[2] = da[1];
+					da[1] = d;
+
+					pa[3] = pa[2];
+					pa[2] = pa[1];
+					pa[1] = vp;
+				}
+				else if (d < da[2]) {
+					da[3] = da[2];
+					da[2] = d;
+
+					pa[3] = pa[2];
+					pa[2] = vp;
+				}
+				else if (d < da[3]) {
+					da[3] = d;
+					pa[3] = vp;
+				}
+			}
+		}
+	}
+}
+
+shader VoronoiAll(
+  point p = P,
+  int Metric = 0,
+  output float Fac1 = 0,
+  output float Fac2 = 0,
+  output float Fac3 = 0,
+  output float Fac4 = 0
+){
+    float da[4];
+    point pa[4];
+    
+    string distance_metric;
+    if (Metric == 0) distance_metric = "Distance Squared";
+	if (Metric == 1) distance_metric = "Actual Distance";
+	if (Metric == 2) distance_metric = "Manhattan";
+	if (Metric == 3) distance_metric = "Chebychev";
+	if (Metric == 4) distance_metric = "Minkovsky 1/2";
+	if (Metric == 5) distance_metric = "Minkovsky 4";
+	if (Metric == 6) distance_metric = "Minkovsky";
+
+    voronoi(p, distance_metric, 0, da, pa);
+  
+    Fac1 = da[0];  
+    Fac2 = da[1];  
+    Fac3 = da[2];  
+    Fac4 = da[3];  
+}
