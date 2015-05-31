@@ -117,6 +117,7 @@ void voronoi(point p, string distance_metric, float e, float da[4], point pa[4])
 shader VoronoiAll(
   point p = P,
   int Metric = 0,
+  float E = 1,
   output float Fac1 = 0,
   output float Fac2 = 0,
   output float Fac3 = 0,
@@ -134,7 +135,7 @@ shader VoronoiAll(
 	if (Metric == 5) distance_metric = "Minkovsky 4";
 	if (Metric == 6) distance_metric = "Minkovsky";
 
-    voronoi(p, distance_metric, 0, da, pa);
+    voronoi(p, distance_metric, E, da, pa);
   
     Fac1 = da[0];  
     Fac2 = da[1];  
