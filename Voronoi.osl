@@ -34,7 +34,7 @@ float voronoi_distance(string distance_metric, vector d, float e)
 	if (distance_metric == "Chebychev")
 		return max(fabs(d[0]), max(fabs(d[1]), fabs(d[2])));
 	if (distance_metric == "Minkovsky 1/2")
-		return sqrt(fabs(d[0])) + sqrt(fabs(d[1])) + sqrt(fabs(d[1]));
+		return sqrt( sqrt(fabs(d[0])) + sqrt(fabs(d[1])) + sqrt(fabs(d[2])) );
 	if (distance_metric == "Minkovsky 4")
 		return sqrt(sqrt(dot(d * d, d * d)));
 	if (distance_metric == "Minkovsky")
