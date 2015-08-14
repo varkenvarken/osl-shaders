@@ -39,7 +39,8 @@ float voronoi_distance(string distance_metric, vector d, float e)
 		return sqrt(sqrt(dot(d * d, d * d)));
 	if (distance_metric == "Minkovsky")
 		return pow(pow(fabs(d[0]), e) + pow(fabs(d[1]), e) + pow(fabs(d[2]), e), 1.0 / e);
-	
+	if (distance_metric == "Sine")
+        return length(d) + (1 + sin(e * length(d)))/2;
 	return 0.0;
 }
 
@@ -134,6 +135,7 @@ shader VoronoiAll(
 	if (Metric == 4) distance_metric = "Minkovsky 1/2";
 	if (Metric == 5) distance_metric = "Minkovsky 4";
 	if (Metric == 6) distance_metric = "Minkovsky";
+	if (Metric == 7) distance_metric = "Sine";
 
     voronoi(p, distance_metric, E, da, pa);
   
