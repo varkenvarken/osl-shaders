@@ -1,0 +1,149 @@
+// ##### BEGIN GPL LICENSE BLOCK #####
+// dtnoise, an OSL noise texture with configurable anisotropy
+// (c) 2016 Michel Anders (varkenvarken)
+//
+//  This program is free software; you can redistribute it and/or
+//  modify it under the terms of the GNU General Public License
+//  as published by the Free Software Foundation; either version 2
+//  of the License, or (at your option) any later version.
+//
+//  This program is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with this program; if not, write to the Free Software Foundation,
+//  Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+//
+// ##### END GPL LICENSE BLOCK #####
+
+// see http://www.swineworld.org/2016/01/noise-experiment-with-open-shading.html
+
+// the bjmix and bjfinal functions are actually part of the OSL source but not exposed so 
+// we reimplement them here. I have not verified whether the the results are completely
+// identical: the originals use unsigned ints.
+
+void bjmix (output int a, output int b, output int c)
+{
+    a -= c;  a ^= c <<  4;  c += b;
+    b -= a;  b ^= a <<  6;  a += c;
+    c -= b;  c ^= b <<  8;  b += a;
+    a -= c;  a ^= c << 16;  c += b;
+    b -= a;  b ^= a << 19;  a += c;
+    c -= b;  c ^= b <<  4;  b += a;
+}
+
+int bjfinal (output int a, output int b, output int c)
+{
+    c ^= b; c -= (b << 14);
+    a ^= c; a -= (c << 11);
+    b ^= a; b -= (a << 25);
+    c ^= b; c -= (b << 16);
+    a ^= c; a -= (c <<  4);
+    b ^= a; b -= (a << 14);
+    c ^= b; c -= (b << 24);
+    return c;
+}
+
+// return a random unit length vector distributed in a cone along an, with cone halfangle theta
+// u and v are arbitrary unit length vectors perpendicular to an and to each other
+// nn and n are integers that will be used as sees (same values will return same random vector)
+ 
+vector randomcone(vector u, vector v, vector an, float theta0, int nn[3], int n){
+ 
+    float sintheta,costheta;
+
+#define LN 50
+    
+    // phi will be randomly sampled from [-pi,pi] so we provide precomputed sin/cos of these random 
+    // values to save calculating cos ann sin every time. This gives a considerable speedup (25%)    
+
+    float sphi[LN] = {0.7314087310976535,-0.8205671992115882,-0.21112351364452062,-0.9445714708868126,0.9443521425153651,-0.6914241306139691,0.9952565906844795,0.16678286729655886,0.4207994771374009,-0.9996136892154972,0.5818287197223571,-0.8833680954892443,0.8538544956390762,0.9509121797607296,0.7597124314882103,-0.6118768756002818,0.15344248167868402,0.5197850761102941,-0.20543878337276825,-0.9705985840476504,-0.3370321993925154,-0.23544954079103028,-0.870218095781081,0.9617256669723389,-0.9249603653180685,-0.7270572123875723,0.7750865773127473,0.7994080383254086,-0.8716710293641962,-0.9829246368103878,0.1842721164918545,0.45279495766571076,0.8271131981144255,0.9167301744923919,-0.10195980239030614,0.9582686745604339,0.5980996832701506,-0.2273677865404067,-0.6155744381654848,-0.8094578924411642,-0.25734352472095723,0.11017918509711952,-0.7374009214531698,0.8266780191359279,0.812224210104658,0.9681453684651663,-0.5738963138271741,-0.9812457240236897,-0.9835175667767546,-0.9999045069259118};
+
+    float cphi[LN] = {0.6819393433980184,0.5715500604304489,0.9774593914769001,0.32830585798417206,-0.3289362110297975,0.7224490789008711,-0.09728473004077473,0.9859936486490866,-0.9071536804979022,-0.027793386497211307,-0.813311343156016,0.46867985648169824,-0.5205117676642275,0.30946086405666534,-0.650259195584554,0.7909530258527603,0.9881575809638292,-0.85429706464029,-0.9786699680108288,-0.24070394397411946,-0.9414931208312909,0.971886574524668,0.49266668831487814,0.2740141264362297,0.3800635770376652,-0.6865768783721257,-0.6318550448240565,-0.6007884721436673,-0.4900914369453548,-0.18400858227584752,-0.9828752652720549,-0.8916146736749611,-0.5620353703326215,0.39950693007149296,0.9947885195842028,0.2858691087826546,-0.8014217172451378,-0.9738089595211763,0.7880787467488561,-0.5871779290510745,-0.9663199833824166,-0.9939117401315545,0.6754553138735501,0.5626752639644812,0.5833453801307287,-0.2503887887255485,-0.8189279705661431,0.19276106734821968,-0.1808125986803246,-0.013819443883495677};
+
+    // theta will be randomly sampled from [-theta0, theta0]. Since theta0 is unknown at compile time
+    // we cannot precompute sin/cos but we can precompute a set of random values
+     
+    float tnoise[LN] = {-0.6902545257332515,0.18502731823488916,0.6827018906014066,0.5539217234763574,0.45806334310189456,0.8573216612288082,0.7897008954973925,0.40377255320982464,-0.25073433382339116,0.6910546415031242,-0.36485948361449316,0.9004102020375997,-0.5346273533515138,0.40821513887057725,0.43263949545694724,0.5785951516629166,0.5012295456808702,0.7498844836345058,0.41714639894487004,0.8825752913551175,0.7878842114551443,-0.6882972910592955,0.6210143271709452,-0.6336881971637485,0.8288363982972096,0.8802298747056396,0.8703922114262279,0.5203724699130476,0.0015549966046339847,0.6550633644946746,0.8776428939717424,-0.5819307245553358,-0.007411249486197757,0.4679540193280938,0.969869277545494,-0.610107001074458,-0.03880058658284269,0.7342035456246505,-0.09518335425031088,0.16443046235260028,-0.13592242956624867,0.9802860836690752,0.33339984376170095,0.25761780454991423,0.1391997910683891,-0.9520798088347067,0.3771326547949567,-0.9383338785702087,-0.4959356938626345,0.8500680808880476};
+
+    // calculate an index in the arrays with precomputed values.
+    int a = nn[0];
+    int b = nn[1];
+    int c = nn[2];
+    
+    bjmix(a, b, c);
+    a += n;
+    
+    int index = abs(bjfinal(a, b, c)) % LN;
+
+    float theta = theta0 * tnoise[index];
+    
+    sincos(theta, sintheta, costheta);
+    
+    return sintheta * (cphi[index] * u + sphi[index] * v) + costheta * an;
+}
+
+shader dtnoise(
+ point  Pos = P,            // texture position and scale
+ float  Scale = 1,
+ 
+ int    Np = 15,            // number of ticks (impulse) per cell
+ 
+ int    Seed = 42,          // random seed
+ 
+ float  Radius = 0.3,       // distance to impulse that will add to result
+ float  Size = 0.7,         // length of an impulse
+ vector Dir = vector(1,0,0),// direction of anisotropy
+ float  Theta = M_PI/2,     // cone (half)angle. The default = 90% which means no anisotropy
+ 
+ float  Step = 0.3,         // cutoff value for Fac output
+ float  Gain = 0.3,         // brightness of the result
+ 
+ output float Sum = 0,      // the sum of all the tick values
+ output float Fac = 0       // the 
+){
+ point p = Pos * Scale;
+ point f = floor(p);
+
+ vector an= normalize(Dir);
+ vector r = vector(an[2],an[1],an[0]); //no need to norm again
+ vector uv = cross(an,r);
+ vector vv = cross(an,u);
+
+ 
+ int xx,yy,zz, np;
+ 
+ int nn[3];
+ 
+ for( xx=-1; xx<=1; xx++){
+  for( yy=-1; yy<=1; yy++){
+   for( zz=-1; zz<=1; zz++){
+    point ff = f + vector(xx,yy,zz);
+    int s=Seed;
+    
+    nn[0] = int(ff[0]);
+    nn[1] = int(ff[1]);
+    nn[2] = int(ff[2]);
+    
+    for( np=0; np < Np; np++){
+     vector pd1 = noise("cell",ff,s);
+     vector pd2 = randomcone(uv, vv, an, Theta, nn, s+1);
+    
+     point p1 = ff + pd1;
+     point p2 = p1 + Size * pd2;
+    
+     float d = distance(p1,p2,p);     
+     Sum += (1 - smoothstep(0, Radius, d));
+     
+     s+=3;
+    }
+   }
+  }
+ }
+ 
+ Sum *= Gain;
+ Fac = smoothstep(0, Step, Sum);
+}
+
